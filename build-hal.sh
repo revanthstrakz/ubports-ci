@@ -5,6 +5,7 @@ cd $ANDROID_ROOT
 source build/envsetup.sh
 export USE_CCACHE=1
 breakfast $DEVICE
+export LC_ALL=C
 export USE_HOST_LEX=yes
 make -j$(nproc) halium-boot
 make -j$(nproc) recoveryimage
