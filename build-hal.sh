@@ -3,7 +3,6 @@ source halium.env
 cd $ANDROID_ROOT
 
 source build/envsetup.sh
-export USE_CCACHE=1
 breakfast $DEVICE
 export USE_HOST_LEX=yes
 make -j$(nproc) mkbootimg
