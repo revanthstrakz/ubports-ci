@@ -1,33 +1,83 @@
-# This is a basic workflow to help you get started with Actions
+#=================================================
+# Description: Build ubports using GitHub Actions
+# Lisence: MIT
+# Contributor: 0312birdzhang
+# Maintainer: Danct12
+# Credit: https://github.com/P3TERX/Actions-OpenWrt
+#=================================================
 
-name: CI
+name: Build System Image
 
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
-on:
+on: 
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches:
+      - master
+  release:
+    types: [published]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
+
   build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    env:
+      VENDOR: xiaomi
+      DEVICE: mido
+      ANDROID_ROOT: /home/runner/work/halium/
+
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@master
+    
+    - name: Initialization environment
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt install -y git gnupg flex bison gperf build-essential \
+        zip bzr curl libc6-dev libncurses5-dev:i386 x11proto-core-dev \
+        libx11-dev:i386 libreadline6-dev:i386 libgl1-mesa-glx:i386 \
+        libgl1-mesa-dev g++-multilib mingw-w64-i686-dev tofrodos \
+        python-markdown libxml2-utils xsltproc zlib1g-dev:i386 schedtool \
+        repo liblz4-tool bc lzop imagemagick libncurses5 rsync
+        sudo apt install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+        sudo docker rmi `docker images -q`
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /etc/mysql \
+          /etc/php
+        mkdir -p ~/bin
+        wget 'https://storage.googleapis.com/git-repo-downloads/repo' -P ~/bin
+        chmod +x ~/bin/repo
+        git config --global user.name "UBports Redmi Note 4 CI"
+        git config --global user.email "thisemaildoesnotexist@exist.com"
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+    - name: Downloading source code
+      run: |
+        source halium.env
+        mkdir -p $ANDROID_ROOT
+        cd $ANDROID_ROOT
+        repo init -u https://github.com/LineageOS/android.git -b lineage-17.1 --depth=1
+        repo sync -j8 -c --no-clone-bundle --no-tags
+    
+    - name: Build HAL
+      run: |
+        . build/envsetup.sh
+        breakfast coral
+        export USE_CCACHE=1
+        export CCACHE_EXEC=/usr/bin/ccache
+        ccache -M 50G
+        croot
+        brunch coral
+      shell: bash
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+    - name : Upload boot image
+      uses: actions/upload-artifact@master
+      with:
+        name: halium-boot image
+        path: /home/runner/work/halium/out/target/product/mido/halium-boot.img
+
+    - name : Upload system image
+      uses: actions/upload-artifact@master
+      with:
+        name: System image
+        path: /home/runner/work/halium/out/target/product/mido/system.img
